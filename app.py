@@ -5,15 +5,22 @@ import sqlite3
 from datetime import datetime
 import winsound
 import os
+import sys
 
 # --- Constants ---
 DB_PATH = "barcode_scans.db"
-SOUND_PATH = "beep.wav"
-ICON_PATH = "og_icon.ico"
 BACKGROUND_IMAGE = "hero-bg.jpg"
-FADE_IN_DURATION = 800  # ms
+SOUND_FILE = "beep.wav"
+ICON_FILE = "og_icon.ico"
+FADE_IN_DURATION = 800  # milliseconds
 
-# --- DB Setup ---
+# --- Resource Path Fix (for .exe packaging) ---
+def resource_path(filename):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, filename)
+    return os.path.join(os.path.abspath("."), filename)
+
+# --- Database Setup ---
 conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 cursor.execute("""
@@ -24,12 +31,13 @@ cursor.execute("""
 """)
 conn.commit()
 
-# --- Sound Alert ---
+# --- Sound ---
 def play_alert():
-    if os.path.exists(SOUND_PATH):
-        winsound.PlaySound(SOUND_PATH, winsound.SND_FILENAME | winsound.SND_ASYNC)
+    sound_path = resource_path(SOUND_FILE)
+    if os.path.exists(sound_path):
+        winsound.PlaySound(sound_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
 
-# --- Scan Handler ---
+# --- Scan Logic ---
 def handle_scan(event=None):
     barcode = entry.get().strip()
     entry.delete(0, tk.END)
@@ -52,7 +60,7 @@ def handle_scan(event=None):
         conn.commit()
         messagebox.showinfo("Scan Recorded", "New code saved successfully.")
 
-# --- Fade-in Effect ---
+# --- Fade-in Animation ---
 def fade_in(window, interval=0.03):
     alpha = 0.0
     increment = interval / (FADE_IN_DURATION / 1000)
@@ -60,7 +68,6 @@ def fade_in(window, interval=0.03):
         nonlocal alpha
         alpha += increment
         if alpha >= 1.0:
-            alpha = 1.0
             window.attributes("-alpha", 1.0)
         else:
             window.attributes("-alpha", alpha)
@@ -74,43 +81,45 @@ root.geometry("520x320")
 root.resizable(False, False)
 root.attributes("-alpha", 0.0)
 
-if os.path.exists(ICON_PATH):
-    root.iconbitmap(ICON_PATH)
+# Icon
+icon_path = resource_path(ICON_FILE)
+if os.path.exists(icon_path):
+    root.iconbitmap(icon_path)
 
-# Load and set background image
-bg_img = Image.open(BACKGROUND_IMAGE).resize((520, 320))
+# Background Image
+bg_img = Image.open(resource_path(BACKGROUND_IMAGE)).resize((520, 320))
 bg_photo = ImageTk.PhotoImage(bg_img)
 
 canvas = tk.Canvas(root, width=520, height=320, highlightthickness=0)
 canvas.pack(fill="both", expand=True)
 canvas.create_image(0, 0, image=bg_photo, anchor="nw")
 
-# --- Fonts & Colors ---
-TITLE_FONT = ("Georgia", 28, "bold")
-ENTRY_FONT = ("Georgia", 18)
-FOOTER_FONT = ("Georgia", 11, "italic")
+# Fonts and Colors
+FONT_HEADER = ("Georgia", 28, "bold")
+FONT_INPUT = ("Georgia", 18)
+FONT_FOOTER = ("Georgia", 11, "italic")
 
-TITLE_COLOR = "#FAFAD2"   # light golden white
-ENTRY_COLOR = "#FFD700"   # bright gold
-FOOTER_COLOR = "#D4AF37"  # rich gold
+TITLE_COLOR = "#FAFAD2"   # Light golden white
+ENTRY_COLOR = "#FFD700"   # Bright gold
+FOOTER_COLOR = "#D4AF37"  # Rich gold
 SHADOW_COLOR = "#000000"
 
-# --- Title with shadow layer for contrast ---
-canvas.create_text(262, 62, text="Scan Barcode", fill=SHADOW_COLOR, font=TITLE_FONT)
-canvas.create_text(260, 60, text="Scan Barcode", fill=TITLE_COLOR, font=TITLE_FONT)
+# Title with drop shadow
+canvas.create_text(262, 62, text="Scan Barcode", fill=SHADOW_COLOR, font=FONT_HEADER)
+canvas.create_text(260, 60, text="Scan Barcode", fill=TITLE_COLOR, font=FONT_HEADER)
 
-# --- Entry box ---
-entry = tk.Entry(root, font=ENTRY_FONT, justify="center", fg=ENTRY_COLOR, bg="#111111",
+# Entry Box
+entry = tk.Entry(root, font=FONT_INPUT, justify="center", fg=ENTRY_COLOR, bg="#111111",
                  insertbackground=ENTRY_COLOR, highlightthickness=2, width=24,
                  highlightbackground=ENTRY_COLOR, highlightcolor=ENTRY_COLOR, bd=0)
 canvas.create_window(260, 140, window=entry)
 
-# --- Footer text ---
-canvas.create_text(260, 290, text="Powered by La Familia", fill=FOOTER_COLOR, font=FOOTER_FONT)
+# Footer
+canvas.create_text(260, 290, text="Powered by La Familia", fill=FOOTER_COLOR, font=FONT_FOOTER)
 
 entry.focus()
 entry.bind("<Return>", handle_scan)
 
-# Launch animation
+# Launch Fade-in
 fade_in(root)
 root.mainloop()
