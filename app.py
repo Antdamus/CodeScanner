@@ -58,7 +58,20 @@ def handle_scan(event=None):
     else:
         cursor.execute("INSERT INTO scans (barcode, scanned_at) VALUES (?, ?)", (barcode, timestamp))
         conn.commit()
-        messagebox.showinfo("Scan Recorded", "New code saved successfully.")
+        
+
+# --- Delayed Scan Trigger ---
+scan_timeout_id = None
+def delayed_handle_scan():
+    global scan_timeout_id
+    scan_timeout_id = None
+    handle_scan()
+
+def on_keypress(event):
+    global scan_timeout_id
+    if scan_timeout_id is not None:
+        root.after_cancel(scan_timeout_id)
+    scan_timeout_id = root.after(300, delayed_handle_scan)
 
 # --- Fade-in Animation ---
 def fade_in(window, interval=0.03):
@@ -118,7 +131,7 @@ canvas.create_window(260, 140, window=entry)
 canvas.create_text(260, 290, text="Powered by La Familia", fill=FOOTER_COLOR, font=FONT_FOOTER)
 
 entry.focus()
-entry.bind("<Return>", handle_scan)
+entry.bind("<Key>", on_keypress)
 
 # Launch Fade-in
 fade_in(root)
